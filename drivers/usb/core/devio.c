@@ -17,6 +17,7 @@
  *    04.01.2000   0.2   Turned into its own filesystem
  *    30.09.2005   0.3   Fix user-triggerable oops in async URB delivery
  *                             (CAN-2005-3055)
+ *    2025         0.4   Fix spin_unlock parameter error for 6.1.y kernel
  */
 
 /*****************************************************************************/
@@ -645,6 +646,7 @@ static void async_completed(struct urb *urb)
         }
 }
 
+// 核心修复：替换所有spin_unlock(lock, flags)为spin_unlock_irqrestore(lock, flags)
 static void destroy_async(struct usb_dev_state *ps, struct list_head *list)
 {
         struct urb *urb;
@@ -659,14 +661,12 @@ static void destroy_async(struct usb_dev_state *ps, struct list_head *list)
                 usb_get_urb(urb);
 
                 /* drop the spinlock so the completion handler can run */
-                // 修复：spin_unlock → spin_unlock_irqrestore（带flags参数）
-                spin_unlock_irqrestore(&ps->lock, flags); 
+                spin_unlock_irqrestore(&ps->lock, flags); // 修复点1
                 usb_kill_urb(urb);
                 usb_put_urb(urb);
                 spin_lock_irqsave(&ps->lock, flags);
         }
-        // 修复：spin_unlock → spin_unlock_irqrestore（带flags参数）
-        spin_unlock_irqrestore(&ps->lock, flags);
+        spin_unlock_irqrestore(&ps->lock, flags); // 修复点2
 }
 
 static void destroy_async_on_interface(struct usb_dev_state *ps,
