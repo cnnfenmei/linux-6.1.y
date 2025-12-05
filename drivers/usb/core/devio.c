@@ -659,12 +659,14 @@ static void destroy_async(struct usb_dev_state *ps, struct list_head *list)
                 usb_get_urb(urb);
 
                 /* drop the spinlock so the completion handler can run */
-                spin_unlock(&ps->lock, flags);
+                // 修复：spin_unlock → spin_unlock_irqrestore（带flags参数）
+                spin_unlock_irqrestore(&ps->lock, flags); 
                 usb_kill_urb(urb);
                 usb_put_urb(urb);
                 spin_lock_irqsave(&ps->lock, flags);
         }
-        spin_unlock(&ps->lock, flags);
+        // 修复：spin_unlock → spin_unlock_irqrestore（带flags参数）
+        spin_unlock_irqrestore(&ps->lock, flags);
 }
 
 static void destroy_async_on_interface(struct usb_dev_state *ps,
